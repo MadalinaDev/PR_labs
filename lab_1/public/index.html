@@ -1,267 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Madalina's Digital Library</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    body {
-      background: linear-gradient(135deg, #f3e5f5 0%, #e8eaf6 100%);
-      min-height: 100vh;
-      color: #333;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-      background-color: white;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(106, 27, 154, 0.1);
-      overflow: hidden;
-      margin-top: 20px;
-      margin-bottom: 20px;
-    }
-
-    .hero-section {
-      height: 300px;
-      background: linear-gradient(rgba(106, 27, 154, 0.7), rgba(74, 20, 140, 0.8)),
-                  url('/img.png') center/cover no-repeat;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      padding: 20px;
-      position: relative;
-    }
-
-    h1 {
-      font-size: 3rem;
-      margin-bottom: 10px;
-      font-weight: 700;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-    }
-
-    .subtitle {
-      font-size: 1.2rem;
-      opacity: 0.9;
-      max-width: 600px;
-    }
-
-    .content {
-      padding: 40px;
-    }
-
-    .section-title {
-      font-size: 1.8rem;
-      margin-bottom: 25px;
-      color: #6a1b9a;
-      border-bottom: 2px solid #e1bee7;
-      padding-bottom: 10px;
-    }
-
-    .documents-list {
-      list-style: none;
-      display: grid;
-      gap: 20px;
-    }
-
-    .document-item {
-      background-color: #f3e5f5;
-      border-radius: 10px;
-      transition: all 0.3s ease;
-      overflow: hidden;
-      border-left: 4px solid #6a1b9a;
-    }
-
-    .document-item:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 20px rgba(106, 27, 154, 0.2);
-    }
-
-    .document-link {
-      display: flex;
-      align-items: center;
-      padding: 20px;
-      text-decoration: none;
-      color: #333;
-    }
-
-    .document-icon {
-      width: 50px;
-      height: 50px;
-      background-color: #6a1b9a;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: 20px;
-      color: white;
-      font-weight: bold;
-      font-size: 1.2rem;
-    }
-
-    .document-info {
-      flex: 1;
-    }
-
-    .document-title {
-      font-weight: 600;
-      margin-bottom: 8px;
-      font-size: 1.2rem;
-      color: #4a148c;
-    }
-
-    .document-type {
-      font-size: 0.95rem;
-      color: #7b1fa2;
-    }
-
-    .directory-item {
-      background-color: #e1bee7;
-    }
-
-    .directory-icon {
-      background-color: #4a148c;
-    }
-
-    footer {
-      text-align: center;
-      padding: 25px;
-      color: #7e57c2;
-      font-size: 0.95rem;
-      border-top: 1px solid #e1bee7;
-      background-color: #f3e5f5;
-    }
-
-    .breadcrumb {
-      padding: 15px 40px;
-      background-color: #f3e5f5;
-      border-bottom: 1px solid #e1bee7;
-      font-size: 0.9rem;
-    }
-
-    .breadcrumb a {
-      color: #7b1fa2;
-      text-decoration: none;
-    }
-
-    .breadcrumb a:hover {
-      text-decoration: underline;
-    }
-
-    @media (max-width: 768px) {
-      .hero-section {
-        height: 250px;
-      }
-
-      h1 {
-        font-size: 2.2rem;
-      }
-
-      .content {
-        padding: 25px;
-      }
-
-      .document-link {
-        padding: 15px;
-      }
-
-      .document-icon {
-        width: 45px;
-        height: 45px;
-        margin-right: 15px;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .hero-section {
-        height: 200px;
-      }
-
-      h1 {
-        font-size: 1.8rem;
-      }
-
-      .subtitle {
-        font-size: 1rem;
-      }
-
-      .document-link {
-        flex-direction: column;
-        text-align: center;
-      }
-
-      .document-icon {
-        margin-right: 0;
-        margin-bottom: 10px;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Digital Library</title>
+    <style>
+        body {
+            font-family: monospace;
+            background-color: #f5f6fa;
+            color: #2f3640;
+            margin: 0 60px;
+        }
+        h1 {
+            border-bottom: 3px solid #718093;
+            padding-bottom: 10px;
+        }
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .gallery img {
+            width: 180px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .file-list {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .file-list th, .file-list td {
+            text-align: left;
+            padding: 10px 12px;
+        }
+        .file-list th {
+            border-bottom: 2px solid #718093;
+        }
+        .file-list tr:nth-child(even) {
+            background-color: #dcdde1;
+        }
+        a {
+            text-decoration: none;
+            color: #0097e6;
+            font-weight: bold;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .subdir {
+            font-style: italic;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-
-    <div class="hero-section">
-      <h1>Additional Resources</h1>
+    <h1>Welcome to My Digital Library</h1>
+    <div class="gallery">
+        <img src="/subdir/library.png" alt="Library">
+        <img src="book_shelf.png" alt="Book Shelf">
+        <img src="books.png" alt="Books">
+        <img src="/subdir/study_place.png" alt="Study Place">
     </div>
 
-    <div class="content">
-      <h2 class="section-title">Documents in this Directory</h2>
-      <ul class="documents-list">
-        <li class="document-item">
-          <a href="/subdir/document1.pdf" class="document-link">
-            <div class="document-icon">PDF</div>
-            <div class="document-info">
-              <div class="document-title">Literary Analysis: Modernism</div>
-              <div class="document-type">Critical Essay</div>
-            </div>
-          </a>
-        </li>
+    <h2>Available Books</h2>
+    <table class="file-list">
+        <tr><th>Title</th><th>Open</th><th>Download</th></tr>
+        <tr>
+            <td>Burning in Water, Drowning in Flame</td>
+            <td><a href="Burning_in_Water_Drowning_in_Flame.pdf">Open</a></td>
+            <td><a href="Burning_in_Water_Drowning_in_Flame.pdf" download>Download</a></td>
+        </tr>
+        <tr>
+            <td>Poems — Bukowski</td>
+            <td><a href="Poems_Bukowski.pdf">Open</a></td>
+            <td><a href="Poems_Bukowski.pdf" download>Download</a></td>
+        </tr>
+        <tr>
+            <td>Selection of Poems</td>
+            <td><a href="Selection_of_Poems.pdf">Open</a></td>
+            <td><a href="Selection_of_Poems.pdf" download>Download</a></td>
+        </tr>
+        <tr>
+            <td>The Hundred Best English Poems</td>
+            <td><a href="The_Hundred_Best_English_Poems.pdf">Open</a></td>
+            <td><a href="The_Hundred_Best_English_Poems.pdf" download>Download</a></td>
+        </tr>
+        <tr>
+            <td>Three Short Novels (Introduction)</td>
+            <td><a href="Three_Short_Novels_Introduction.pdf">Open</a></td>
+            <td><a href="Three_Short_Novels_Introduction.pdf" download>Download</a></td>
+        </tr>
+    </table>
 
-        <li class="document-item">
-          <a href="/subdir/document2.pdf" class="document-link">
-            <div class="document-icon">PDF</div>
-            <div class="document-info">
-              <div class="document-title">Poetry Collection 2022</div>
-              <div class="document-type">Anthology</div>
-            </div>
-          </a>
-        </li>
-
-        <li class="document-item">
-          <a href="/subdir/document3.pdf" class="document-link">
-            <div class="document-icon">PDF</div>
-            <div class="document-info">
-              <div class="document-title">Writing Techniques Guide</div>
-              <div class="document-type">Instructional Material</div>
-            </div>
-          </a>
-        </li>
-
-        <li class="document-item directory-item">
-          <a href="/" class="document-link">
-            <div class="document-icon directory-icon">←</div>
-            <div class="document-info">
-              <div class="document-title">Back to Main Library</div>
-              <div class="document-type">Return to the main directory</div>
-            </div>
-          </a>
-        </li>
-      </ul>
-    </div>
-
-    <footer>
-      <p>Last updated: October 2025</p>
-    </footer>
-  </div>
+    <h2>Subdirectory</h2>
+    <p class="subdir"><a href="subdir/">Open Subdirectory</a></p>
 </body>
+<footer style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #718093; font-family: monospace;">
+    <p>October 2025 | Madalina Chirpicinic | FAF-233</p>
+</footer>
 </html>
