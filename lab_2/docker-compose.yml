@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server.dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./public:/app/public
+  client:
+    build:
+      context: .
+      dockerfile: client.dockerfile
+    volumes:
+      - ./downloads:/app/downloads
