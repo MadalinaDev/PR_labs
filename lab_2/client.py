@@ -9,11 +9,12 @@ URLS = [
     "http://localhost:8000/public/books.png",
     "http://localhost:8000/public/book_shelf.png",
     "http://localhost:8000/public/book_1.pdf",
-    "http://localhost:8000/public/book_2.pdf",
-    "http://localhost:8000/public/book_3.pdf",
-    "http://localhost:8000/public/books.png",
-    "http://localhost:8000/public/book_shelf.png",
+    "http://localhost:8000/public/book_1.pdf",
+    "http://localhost:8000/public/book_1.pdf",
+    "http://localhost:8000/public/book_1.pdf",
+    "http://localhost:8000/public/book_1.pdf",
 ]
+
 NUM_REQUESTS = len(URLS)
 
 def make_request(url, i):
