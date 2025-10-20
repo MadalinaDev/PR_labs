@@ -1,5 +1,4 @@
 import requests
-from concurrent.futures import ThreadPoolExecutor
 import time
 import os
 
@@ -19,19 +18,11 @@ URLS = [
     f"http://{SERVER_HOST}:{SERVER_PORT}/public/book_1.pdf",
 ]
 
-print(SERVER_HOST)
-print(SERVER_PORT)
+start = time.time()
 
-NUM_REQUESTS = len(URLS)
-
-def make_request(url, i):
+for i, url in enumerate(URLS):
     r = requests.get(url)
     print(f"Request {i+1} to {url}: {r.status_code}")
 
-start = time.time()
-with ThreadPoolExecutor(max_workers=NUM_REQUESTS) as executor:
-    for i, url in enumerate(URLS):
-        executor.submit(make_request, url, i)
 end = time.time()
-
-print(f"Total time for {NUM_REQUESTS} concurrent requests: {end - start:.2f}s")
+print(f"Total time for {len(URLS)} sequential requests: {end - start:.2f}s")

@@ -6,9 +6,9 @@ from collections import defaultdict
 import mimetypes
 import os
 
-PORT = 8000
+PORT = 8002
 REQUEST_DELAY = 1
-RATE_LIMIT = 10
+RATE_LIMIT = 5
 
 request_counter = defaultdict(int)
 rate_limit_dict = defaultdict(list)
@@ -30,7 +30,9 @@ class Lab2HTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         time.sleep(REQUEST_DELAY)
 
-        request_counter[self.path] += 1
+        val = request_counter[self.path]
+        time.sleep(0.01)
+        request_counter[self.path] = val + 1
 
         filepath = self.translate_path(self.path)
         if os.path.isdir(filepath):

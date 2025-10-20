@@ -6,7 +6,7 @@ from collections import defaultdict
 import mimetypes
 import os
 
-PORT = 8000
+PORT = 8001
 REQUEST_DELAY = 1
 RATE_LIMIT = 5
 

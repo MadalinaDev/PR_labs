@@ -1,0 +1,78 @@
+version: "3.9"
+
+services:
+  singlethreaded-server:
+    build:
+      context: .
+      dockerfile: server.dockerfile
+    ports:
+      - "8000:8000"
+    command: ["python", "singlethreaded_server.py"]
+    networks:
+      - app-network
+
+  multithreaded-lock-server:
+    build:
+      context: .
+      dockerfile: server.dockerfile
+    ports:
+      - "8001:8001"
+    command: ["python", "multithreaded_server_lock.py"]
+    networks:
+      - app-network
+
+  multithreaded-nolock-server:
+    build:
+      context: .
+      dockerfile: server.dockerfile
+    ports:
+      - "8002:8002"
+    command: ["python", "multithreaded_server_no_lock.py"]
+    networks:
+      - app-network
+
+  client-nolock:
+    build:
+      context: .
+      dockerfile: client.dockerfile
+    image: client-nolock
+    command: ["python", "client.py"]
+    depends_on:
+      - multithreaded-nolock-server
+    environment:
+      - SERVER_HOST=multithreaded-nolock-server
+      - SERVER_PORT=8002
+    networks:
+      - app-network
+
+  client-lock:
+    build:
+      context: .
+      dockerfile: client.dockerfile
+    image: client-lock
+    command: [ "python", "client.py" ]
+    depends_on:
+      - multithreaded-lock-server
+    environment:
+      - SERVER_HOST=multithreaded-lock-server
+      - SERVER_PORT=8001
+    networks:
+      - app-network
+
+  client-single:
+    build:
+      context: .
+      dockerfile: client.dockerfile
+    image: client-single
+    command: ["python", "client_single.py"]
+    depends_on:
+      - singlethreaded-server
+    environment:
+      - SERVER_HOST=singlethreaded-server
+      - SERVER_PORT=8000
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
