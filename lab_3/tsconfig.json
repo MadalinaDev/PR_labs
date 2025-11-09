@@ -12,7 +12,9 @@
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noUncheckedIndexedAccess": true,
-    
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+
     "target": "esnext",
     "module": "nodenext",
     "esModuleInterop": true,
