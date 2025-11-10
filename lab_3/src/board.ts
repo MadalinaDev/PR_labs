@@ -22,16 +22,21 @@ import fs from "node:fs";
  * Represents the state of a single card on the board
  */
 class CardState {
-    constructor(
-        public value: string,
-        public faceUp: boolean = false,
-        public matched: boolean = false,
-        public controller: string | null = null
-    ) {}
+  constructor(
+    public value: string,
+    public faceUp: boolean = false,
+    public matched: boolean = false,
+    public controller: string | null = null
+  ) {}
 
-    public copy(): CardState {
-        return new CardState(this.value, this.faceUp, this.matched, this.controller);
-    }
+  public copy(): CardState {
+    return new CardState(
+      this.value,
+      this.faceUp,
+      this.matched,
+      this.controller
+    );
+  }
 }
 
 /**
@@ -44,6 +49,14 @@ export class Board {
   private cards: CardState[][];
   private changeListeners: Array<() => void> = [];
   private readonly locks: Map<string, number> = new Map(); // playerId -> card index
+  private playerStates: Map<
+    string,
+    {
+      firstCard: { row: number; col: number } | null;
+      secondCard: { row: number; col: number } | null;
+      matched: boolean;
+    }
+  > = new Map();
 
   // **********************
   // Abstraction function:
@@ -59,11 +72,12 @@ export class Board {
   // **********************
   // Representation invariant (RI):
   // **********************
-  //   - rows > 0 && cols > 0
-  //   - cards.length === rows
-  //   - ∀r in [0,rows): cards[r].length === cols
-  //   - ∀r,c: if cards[r][c].matched is true then cards[r][c].faceUp must be true
-  //   - ∀r,c: if cards[r][c].controller ≠ null then cards[r][c].faceUp must be true
+  // - rows and cols are positive
+  // - cards has exactly 'rows' rows
+  // - each row in cards has exactly 'cols' columns
+  // - if a card is matched, it must be face up
+  // - if a card has a controller, it must be face up
+
   //
   // **********************
   // Safety from rep exposure:
@@ -78,6 +92,7 @@ export class Board {
     this.cards = [];
     this.changeListeners = [];
     this.locks = new Map();
+    this.playerStates = new Map();
 
     if (cardValues && this.rows > 0 && this.cols > 0) {
       for (let r = 0; r < this.rows; r++) {
@@ -181,7 +196,7 @@ export class Board {
   /**
    * Get the current board state as a string for a player in the format expected by the UI
    */
-  public getBoardState(playerId: string): string {
+  public look(playerId: string): string {
     const lines: string[] = [];
 
     // First line: dimensions
@@ -195,8 +210,8 @@ export class Board {
         let status: string;
         let text: string = "";
 
-        if (card.matched) {
-          // Matched cards show as 'none'
+        if (card.matched || card.value === null) {
+          // Matched cards or empty spaces show as 'none'
           status = "none";
           text = "";
         } else if (card.faceUp) {
@@ -204,12 +219,8 @@ export class Board {
             // Card controlled by this player
             status = "my";
             text = card.value;
-          } else if (card.controller !== null) {
-            // Card controlled by another player
-            status = "up";
-            text = card.value;
           } else {
-            // Face up but not controlled by anyone
+            // Face up but controlled by another player or no one
             status = "up";
             text = card.value;
           }
@@ -220,7 +231,7 @@ export class Board {
         }
 
         // Each card gets its own line with status and text
-        lines.push(`${status} ${text}`);
+        lines.push(status + (text ? ` ${text}` : ""));
       }
     }
 
@@ -230,44 +241,46 @@ export class Board {
   /**
    * Flip a card for a player
    */
-  public async flipCard(
-    playerId: string,
-    row: number,
-    col: number
-  ): Promise<void> {
+  public async flip(playerId: string, row: number, col: number): Promise<void> {
     // Validate coordinates
     if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) {
       throw new Error("Invalid card coordinates");
     }
+
+    // Get or create player state
+    if (!this.playerStates.has(playerId)) {
+      this.playerStates.set(playerId, {
+        firstCard: null,
+        secondCard: null,
+        matched: false,
+      });
+    }
+
+    const playerState = this.playerStates.get(playerId)!;
 
     await this.waitForCard(playerId, row, col);
 
     try {
       const card = this.cards[row]![col]!;
 
-      // Check if card can be flipped
-      if (card.matched) {
-        throw new Error("Card is already matched and removed");
+      // Case 1-A: No card in this spot
+      if (card.matched || card.value === null) {
+        throw new Error(`no card at (${row},${col})`);
       }
 
-      if (card.controller !== null && card.controller !== playerId) {
-        throw new Error("Card is controlled by another player");
+      // Determine if this is first or second card
+      const isFirstCard =
+        playerState.firstCard === null || playerState.secondCard !== null;
+
+      // Case 3: Before flipping a new first card, finish previous turn
+      if (isFirstCard) {
+        await this.finishPreviousPlay(playerId, playerState);
       }
 
-      if (card.faceUp) {
-        // Flip face down - only if player controls it
-        if (card.controller === playerId) {
-          card.faceUp = false;
-          card.controller = null;
-          this.notifyChange();
-        } else {
-          throw new Error("Cannot flip down a card you don't control");
-        }
+      if (isFirstCard) {
+        await this.flipFirstCard(playerId, playerState, row, col, card);
       } else {
-        // Flip face up
-        card.faceUp = true;
-        card.controller = playerId;
-        this.notifyChange();
+        await this.flipSecondCard(playerId, playerState, row, col, card);
       }
 
       this.checkRep();
@@ -277,44 +290,172 @@ export class Board {
   }
 
   /**
-   * Check for matching cards and update state
+   * Case 3: Finish previous turn before starting a new first card
    */
-  public checkMatches(): void {
-    const faceUpCards: Array<{ row: number; col: number; value: string }> = [];
+  private async finishPreviousPlay(
+    playerId: string,
+    playerState: {
+      firstCard: { row: number; col: number } | null;
+      secondCard: { row: number; col: number } | null;
+      matched: boolean;
+    }
+  ): Promise<void> {
+    if (playerState.secondCard === null) {
+      return; // No previous turn to finish
+    }
 
-    // Find all face-up, unmatched cards
-    for (let r = 0; r < this.rows; r++) {
-      for (let c = 0; c < this.cols; c++) {
-        const card = this.cards[r]![c]!;
-        if (card.faceUp && !card.matched && card.controller !== null) {
-          faceUpCards.push({ row: r, col: c, value: card.value });
-        }
+    const first = playerState.firstCard;
+    const second = playerState.secondCard;
+
+    if (playerState.matched) {
+      // Case 3-A: Remove matched cards
+      if (first !== null) {
+        this.removeCard(first.row, first.col, playerId);
+      }
+      if (second !== null) {
+        this.removeCard(second.row, second.col, playerId);
+      }
+    } else {
+      // Case 3-B: Turn non-matching cards face down if not controlled
+      if (first !== null) {
+        this.turnDownIfNotControlled(first.row, first.col, playerId);
+      }
+      if (second !== null) {
+        this.turnDownIfNotControlled(second.row, second.col, playerId);
       }
     }
 
-    // Group by value
-    const valueGroups = new Map<string, Array<{ row: number; col: number }>>();
-    for (const card of faceUpCards) {
-      if (!valueGroups.has(card.value)) {
-        valueGroups.set(card.value, []);
+    // Reset player state
+    playerState.firstCard = null;
+    playerState.secondCard = null;
+    playerState.matched = false;
+  }
+
+  /**
+   * Flip a first card (Cases 1-A through 1-D)
+   */
+  private async flipFirstCard(
+    playerId: string,
+    playerState: {
+      firstCard: { row: number; col: number } | null;
+      secondCard: { row: number; col: number } | null;
+      matched: boolean;
+    },
+    row: number,
+    col: number,
+    card: CardState
+  ): Promise<void> {
+    // Case 1-D: Card is held by another player – wait
+    while (card.controller !== null && card.controller !== playerId) {
+      this.unlockCard(row, col);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      await this.waitForCard(playerId, row, col);
+      // After waiting, check again (card might have been removed)
+      if (card.matched || card.value === null) {
+        throw new Error(`no card at (${row},${col})`);
       }
-      valueGroups.get(card.value)!.push({ row: card.row, col: card.col });
     }
 
-    // Mark complete groups as matched
-    let changed = false;
-    for (const [value, cards] of valueGroups) {
-      if (cards.length >= 2) {
-        // Found a match - mark all cards with this value as matched
-        for (const card of cards) {
-          this.cards[card.row]![card.col]!.matched = true;
-          this.cards[card.row]![card.col]!.controller = null;
-        }
-        changed = true;
-      }
+    // Case 1-B and 1-C: Take control of this card
+    card.faceUp = true;
+    card.controller = playerId;
+    playerState.firstCard = { row, col };
+
+    this.notifyChange();
+  }
+
+  /**
+   * Flip a second card (Cases 2-A through 2-D)
+   */
+  private async flipSecondCard(
+    playerId: string,
+    playerState: {
+      firstCard: { row: number; col: number } | null;
+      secondCard: { row: number; col: number } | null;
+      matched: boolean;
+    },
+    row: number,
+    col: number,
+    card: CardState
+  ): Promise<void> {
+    const first = playerState.firstCard;
+    let firstCard: CardState | undefined = undefined;
+    if (first !== null) {
+      firstCard = this.cards[first.row]![first.col]!;
     }
 
-    if (changed) {
+    // Case 2-A: No card in this spot
+    if (card.matched || card.value === null) {
+      if (firstCard !== undefined) {
+        firstCard.controller = null; // Release first card
+      }
+      playerState.firstCard = null;
+      throw new Error(`no card at (${row},${col})`);
+    }
+
+    // Case 2-B: Card already controlled by another player (skip waiting)
+    if (card.controller !== null) {
+      if (firstCard !== undefined) {
+        firstCard.controller = null; // Release first card
+      }
+      playerState.firstCard = null;
+      throw new Error(
+        `card at (${row},${col}) is controlled by another player`
+      );
+    }
+
+    // Case 2-C: Turn face up if needed
+    card.faceUp = true;
+
+    this.notifyChange();
+
+    // Case 2-D: Check if the two cards match
+    if (firstCard !== undefined && firstCard.value === card.value) {
+      // Match found – keep both cards under control
+      card.controller = playerId;
+      playerState.secondCard = { row, col };
+      playerState.matched = true;
+    } else {
+      // Case 2-E: No match – release both cards but leave them face up
+      if (firstCard !== undefined) {
+        firstCard.controller = null;
+      }
+      playerState.secondCard = { row, col };
+      playerState.matched = false;
+    }
+  }
+
+  /**
+   * Remove a card from the board
+   */
+  private removeCard(row: number, col: number, playerId: string): void {
+    const card = this.cards[row]![col]!;
+
+    card.matched = true;
+    card.faceUp = false;
+    card.controller = null;
+
+    this.notifyChange();
+  }
+
+  /**
+   * Turn a card face down if it's not controlled by anyone
+   */
+  private turnDownIfNotControlled(
+    row: number,
+    col: number,
+    expectedController: string
+  ): void {
+    const card = this.cards[row]![col]!;
+
+    // Only turn down if: card exists, is face up, and no player controls it
+    if (
+      !card.matched &&
+      card.value !== null &&
+      card.faceUp &&
+      card.controller === null
+    ) {
+      card.faceUp = false;
       this.notifyChange();
     }
   }
@@ -322,44 +463,52 @@ export class Board {
   /**
    * Apply a function to all cards
    */
-  public async mapCards(f: (card: string) => Promise<string>): Promise<void> {
-    // Create a copy of current values to ensure consistency
-    const oldValues: string[][] = [];
-    const cardPositions: Array<[number, number]> = [];
+  public async map(f: (card: string) => Promise<string>): Promise<void> {
+    // Group cards by their current value for pairwise consistency
+    const cardPositions = new Map<
+      string,
+      Array<{ row: number; col: number }>
+    >();
 
     for (let r = 0; r < this.rows; r++) {
-      oldValues.push([]);
       for (let c = 0; c < this.cols; c++) {
-        oldValues[r]!.push(this.cards[r]![c]!.value);
-        cardPositions.push([r, c]);
+        const card = this.cards[r]![c]!;
+        if (!card.matched && card.value !== null) {
+          const positions = cardPositions.get(card.value);
+          if (positions === undefined) {
+            cardPositions.set(card.value, [{ row: r, col: c }]);
+          } else {
+            positions.push({ row: r, col: c });
+          }
+        }
       }
     }
 
-    // Apply the function to create new values
-    const newValues: string[][] = [];
-    for (let r = 0; r < this.rows; r++) {
-      newValues.push([]);
-      for (let c = 0; c < this.cols; c++) {
-        const newValue = await f(oldValues[r]![c]!);
-        newValues[r]!.push(newValue);
+    // Transform each unique card value and apply to all its positions atomically
+    for (const [oldValue, positions] of cardPositions) {
+      const newValue = await f(oldValue);
+
+      // Atomically update all positions with this card value
+      for (const { row, col } of positions) {
+        const card = this.cards[row]![col]!;
+        // Only update if the card still has the old value
+        if (card.value === oldValue) {
+          card.value = newValue;
+        }
+      }
+
+      if (oldValue !== newValue) {
+        this.notifyChange();
       }
     }
 
-    // Update all cards atomically
-    for (let r = 0; r < this.rows; r++) {
-      for (let c = 0; c < this.cols; c++) {
-        this.cards[r]![c]!.value = newValues[r]![c]!;
-      }
-    }
-
-    this.notifyChange();
     this.checkRep();
   }
 
   /**
    * Wait for the board to change
    */
-  public async waitForChange(): Promise<void> {
+  public watch(): Promise<void> {
     return new Promise((resolve) => {
       this.changeListeners.push(resolve);
     });
@@ -395,6 +544,6 @@ export class Board {
   }
 
   public toString(): string {
-    return this.getBoardState("observer");
+    return this.look("observer");
   }
 }
