@@ -181,7 +181,22 @@ export class Board {
     row: number,
     col: number
   ): Promise<void> {
+    const startTime = Date.now();
+    const timeoutMs = 1000; // 1 second timeout to prevent deadlocks
+
     while (!this.tryLockCard(playerId, row, col)) {
+      // Check if we've been waiting too long
+      if (Date.now() - startTime > timeoutMs) {
+        throw new Error(`Timeout waiting for card at (${row},${col})`);
+      }
+
+      // Check if the card still exists (might have been removed)
+      const card = this.cards[row]?.[col];
+      if (!card || card.matched || card.value === null) {
+        throw new Error(`no card at (${row},${col})`);
+      }
+
+      // Small delay before retry
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }
@@ -257,7 +272,7 @@ export class Board {
     if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) {
       throw new Error("Invalid card coordinates");
     }
-    
+
     // Get or create player state
     if (!this.playerStates.has(playerId)) {
       this.playerStates.set(playerId, {

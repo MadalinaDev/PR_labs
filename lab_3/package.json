@@ -8,7 +8,7 @@
   "scripts": {
     "compile": "tsc",
     "start": "tsx src/server.ts",
-    "simulation": "tsc && node --require source-map-support/register dist/src/simulation.js",
+    "simulation": "tsx src/simulation.ts",
     "lint": "tsc && eslint",
     "test": "mocha -r ts-node/register test/**/*.ts",
     "coverage": "c8 npm test"
