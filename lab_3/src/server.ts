@@ -49,163 +49,169 @@ async function main(): Promise<void> {
  * HTTP web game server.
  */
 class WebServer {
+  private readonly app: Application;
+  private server: Server | undefined;
 
-    private readonly app: Application;
-    private server: Server|undefined;
+  /**
+   * Make a new web game server using board that listens for connections on port.
+   *
+   * @param board shared game board
+   * @param requestedPort server port number
+   */
+  public constructor(
+    private readonly board: Board,
+    private readonly requestedPort: number
+  ) {
+    this.app = express();
+    this.app.use((request, response, next) => {
+      // allow requests from web pages hosted anywhere
+      response.set("Access-Control-Allow-Origin", "*");
+      next();
+    });
 
-    /**
-     * Make a new web game server using board that listens for connections on port.
-     * 
-     * @param board shared game board
-     * @param requestedPort server port number
+    /*
+     * GET /look/<playerId>
+     * playerId must be a nonempty string of alphanumeric or underscore characters
+     *
+     * Response is the board state from playerId's perspective, as described in the ps4 handout.
      */
-    public constructor(
-        private readonly board: Board, 
-        private readonly requestedPort: number
-    ) {
-        this.app = express();
-        this.app.use((request, response, next) => {
-            // allow requests from web pages hosted anywhere
-            response.set('Access-Control-Allow-Origin', '*');
-            next();
-        });
+    this.app.get("/look/:playerId", async (request, response) => {
+      const { playerId } = request.params;
+      assert(playerId);
 
-        /*
-         * GET /look/<playerId>
-         * playerId must be a nonempty string of alphanumeric or underscore characters
-         * 
-         * Response is the board state from playerId's perspective, as described in the ps4 handout.
-         */
-        this.app.get('/look/:playerId', async(request, response) => {
-            const { playerId } = request.params;
-            assert(playerId);
+      const boardState = await look(this.board, playerId);
+      response
+        .status(StatusCodes.OK) // 200
+        .type("text")
+        .send(boardState);
+    });
 
-            const boardState = await look(this.board, playerId);
-            response
-            .status(StatusCodes.OK) // 200
-            .type('text')
-            .send(boardState);
-        });
-
-        /*
-         * GET /flip/<playerId>/<row>,<column>
-         * playerId must be a nonempty string of alphanumeric or underscore characters;
-         * row and column must be integers, 0 <= row,column < height,width of board (respectively)
-         * 
-         * Response is the state of the board after the flip from the perspective of playerID,
-         * as described in the ps4 handout.
-         */
-        this.app.get('/flip/:playerId/:location', async(request, response) => {
-            const { playerId, location } = request.params;
-            assert(playerId);
-            assert(location);
-
-            const [ row, column ] = location.split(',').map( s => parseInt(s) );
-            assert(row !== undefined && !isNaN(row));
-            assert(column !== undefined && !isNaN(column));
-
-            try {
-                const boardState = await flip(this.board, playerId, row, column);
-                response
-                .status(StatusCodes.OK) // 200
-                .type('text')
-                .send(boardState);
-            } catch (err) {
-                response
-                .status(StatusCodes.CONFLICT) // 409
-                .type('text')
-                .send(`cannot flip this card: ${err}`);
-            }
-        });
-
-        /*
-         * GET /replace/<playerId>/<oldcard>/<newcard>
-         * playerId must be a nonempty string of alphanumeric or underscore characters;
-         * oldcard and newcard must be nonempty strings.
-         * 
-         * Replaces all occurrences of oldcard with newcard (as card labels) on the board.
-         * 
-         * Response is the state of the board after the replacement from the the perspective of playerID,
-         * as described in the ps4 handout.
-         */
-        this.app.get('/replace/:playerId/:fromCard/:toCard', async(request, response) => {
-            const { playerId, fromCard, toCard } = request.params;
-            assert(playerId);
-            assert(fromCard);
-            assert(toCard);
-
-            const boardState = await map(this.board, playerId, async (card: string) => card === fromCard ? toCard : card);
-            response
-            .status(StatusCodes.OK) // 200
-            .type('text')
-            .send(boardState);
-        });
-
-        /*
-         * GET /watch/<playerId>
-         * playerId must be a nonempty string of alphanumeric or underscore characters
-         * 
-         * Waits until the next time the board changes (defined as any cards turning face up or face down, 
-         * being removed from the board, or changing from one string to a different string).
-         * 
-         * Response is the new state of the board from the perspective of playerID,
-         * as described in the ps4 handout.
-         */
-        this.app.get('/watch/:playerId', async(request, response) => {
-            const { playerId } = request.params;
-            assert(playerId);
-
-            const boardState = await watch(this.board, playerId);
-            response
-            .status(StatusCodes.OK) // 200
-            .type('text')
-            .send(boardState);
-        });
-
-        /*
-         * GET /
-         *
-         * Response is the game UI as an HTML page.
-         */
-        this.app.use(express.static('public/'));
-    }
-
-    /**
-     * Start this server.
-     * 
-     * @returns (a promise that) resolves when the server is listening
+    /*
+     * GET /flip/<playerId>/<row>,<column>
+     * playerId must be a nonempty string of alphanumeric or underscore characters;
+     * row and column must be integers, 0 <= row,column < height,width of board (respectively)
+     *
+     * Response is the state of the board after the flip from the perspective of playerID,
+     * as described in the ps4 handout.
      */
-    public start(): Promise<void> {
-        const { promise, resolve } = Promise.withResolvers<void>();
-        this.server = this.app.listen(this.requestedPort);
-        this.server.on('listening', () => {
-            console.log(`server now listening at http://localhost:${this.port}`);
-            resolve();
-        });
-        return promise;
-    }
+    this.app.get("/flip/:playerId/:location", async (request, response) => {
+      const { playerId, location } = request.params;
+      assert(playerId);
+      assert(location);
 
-    /**
-     * @returns the actual port that server is listening at. (May be different
-     *          than the requestedPort used in the constructor, since if
-     *          requestedPort = 0 then an arbitrary available port is chosen.)
-     *          Requires that start() has already been called and completed.
-     */
-    public get port(): number {
-        const address = this.server?.address() ?? 'not connected';
-        if (typeof(address) === 'string') {
-            throw new Error('server is not listening at a port');
-        }
-        return address.port;
-    }
+      const [row, column] = location.split(",").map((s) => parseInt(s));
+      assert(row !== undefined && !isNaN(row));
+      assert(column !== undefined && !isNaN(column));
 
-    /**
-     * Stop this server. Once stopped, this server cannot be restarted.
+      try {
+        const boardState = await flip(this.board, playerId, row, column);
+        response
+          .status(StatusCodes.OK) // 200
+          .type("text")
+          .send(boardState);
+      } catch (err) {
+        response
+          .status(StatusCodes.CONFLICT) // 409
+          .type("text")
+          .send(`cannot flip this card: ${err}`);
+      }
+    });
+
+    /*
+     * GET /replace/<playerId>/<oldcard>/<newcard>
+     * playerId must be a nonempty string of alphanumeric or underscore characters;
+     * oldcard and newcard must be nonempty strings.
+     *
+     * Replaces all occurrences of oldcard with newcard (as card labels) on the board.
+     *
+     * Response is the state of the board after the replacement from the the perspective of playerID,
+     * as described in the ps4 handout.
      */
-     public stop(): void {
-        this.server?.close();
-        console.log('server stopped');
+    this.app.get(
+      "/replace/:playerId/:fromCard/:toCard",
+      async (request, response) => {
+        const { playerId, fromCard, toCard } = request.params;
+        assert(playerId);
+        assert(fromCard);
+        assert(toCard);
+
+        const boardState = await map(
+          this.board,
+          playerId,
+          async (card: string) => (card === fromCard ? toCard : card)
+        );
+        response
+          .status(StatusCodes.OK) // 200
+          .type("text")
+          .send(boardState);
+      }
+    );
+
+    /*
+     * GET /watch/<playerId>
+     * playerId must be a nonempty string of alphanumeric or underscore characters
+     *
+     * Waits until the next time the board changes (defined as any cards turning face up or face down,
+     * being removed from the board, or changing from one string to a different string).
+     *
+     * Response is the new state of the board from the perspective of playerID,
+     * as described in the ps4 handout.
+     */
+    this.app.get("/watch/:playerId", async (request, response) => {
+      const { playerId } = request.params;
+      assert(playerId);
+
+      const boardState = await watch(this.board, playerId);
+      response
+        .status(StatusCodes.OK) // 200
+        .type("text")
+        .send(boardState);
+    });
+
+    /*
+     * GET /
+     *
+     * Response is the game UI as an HTML page.
+     */
+    this.app.use(express.static("public/"));
+  }
+
+  /**
+   * Start this server.
+   *
+   * @returns (a promise that) resolves when the server is listening
+   */
+  public start(): Promise<void> {
+    return new Promise((resolve) => {
+      this.server = this.app.listen(this.requestedPort);
+      this.server.on("listening", () => {
+        console.log(`server now listening at http://localhost:${this.port}`);
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * @returns the actual port that server is listening at. (May be different
+   *          than the requestedPort used in the constructor, since if
+   *          requestedPort = 0 then an arbitrary available port is chosen.)
+   *          Requires that start() has already been called and completed.
+   */
+  public get port(): number {
+    const address = this.server?.address() ?? "not connected";
+    if (typeof address === "string") {
+      throw new Error("server is not listening at a port");
     }
+    return address.port;
+  }
+
+  /**
+   * Stop this server. Once stopped, this server cannot be restarted.
+   */
+  public stop(): void {
+    this.server?.close();
+    console.log("server stopped");
+  }
 }
 
-await main();
+main();

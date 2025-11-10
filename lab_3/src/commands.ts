@@ -5,13 +5,6 @@
 import { Board } from './board.js';
 
 /**
- * String-based commands provided by the Memory Scramble game.
- * 
- * PS4 instructions: these are required functions.
- * You MUST NOT change the names, type signatures, or specs of these functions.
- */
-
-/**
  * Looks at the current state of the board.
  *
  * @param board a Memory Scramble board
@@ -21,8 +14,7 @@ import { Board } from './board.js';
  *          described in the ps4 handout
  */
 export async function look(board: Board, playerId: string): Promise<string> {
-    throw new Error('look function not implemented');
-    // implement with glue code only, at most three lines
+    return board.getBoardState(playerId);
 }
 
 /**
@@ -43,8 +35,9 @@ export async function look(board: Board, playerId: string): Promise<string> {
  *         in the ps4 handout.
  */
 export async function flip(board: Board, playerId: string, row: number, column: number): Promise<string> {
-    throw new Error('flip function not implemented');
-    // implement with glue code only, at most three lines
+    await board.flipCard(playerId, row, column);
+    board.checkMatches();
+    return board.getBoardState(playerId);
 }
 
 /**
@@ -71,8 +64,8 @@ export async function flip(board: Board, playerId: string, row: number, column: 
  *          in the format described in the ps4 handout
  */
 export async function map(board: Board, playerId: string, f: (card: string) => Promise<string>): Promise<string> {
-    throw new Error('map function not implemented');
-    // implement with glue code only, at most three lines
+    await board.mapCards(f);
+    return board.getBoardState(playerId);
 }
 
 /**
@@ -86,6 +79,6 @@ export async function map(board: Board, playerId: string, f: (card: string) => P
  *          format described in the ps4 handout
  */
 export async function watch(board: Board, playerId: string): Promise<string> {
-    throw new Error('watch function not implemented');
-    // implement with glue code only, at most three lines
+    await board.waitForChange();
+    return board.getBoardState(playerId);
 }

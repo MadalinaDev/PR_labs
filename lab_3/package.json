@@ -7,7 +7,7 @@
   },
   "scripts": {
     "compile": "tsc",
-    "start": "tsc && node --require source-map-support/register dist/src/server.js",
+    "start": "tsx src/server.ts",
     "simulation": "tsc && node --require source-map-support/register dist/src/simulation.js",
     "lint": "tsc && eslint",
     "test": "mocha -r ts-node/register test/**/*.ts",
@@ -50,6 +50,7 @@
     "mocha": "^11.0.1",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.24.1"
   }
