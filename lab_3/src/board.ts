@@ -87,14 +87,19 @@ export class Board {
   //   - Internal card state is protected by async method coordination
 
   constructor(rows?: number, cols?: number, cardValues?: string[][]) {
-    this.rows = rows ?? 0;
-    this.cols = cols ?? 0;
+    // Validate dimensions first
+    if (rows === undefined || cols === undefined || rows <= 0 || cols <= 0) {
+      throw new Error("Invalid dimensions");
+    }
+
+    this.rows = rows;
+    this.cols = cols;
     this.cards = [];
     this.changeListeners = [];
     this.locks = new Map();
     this.playerStates = new Map();
 
-    if (cardValues && this.rows > 0 && this.cols > 0) {
+    if (cardValues) {
       for (let r = 0; r < this.rows; r++) {
         const row: CardState[] = [];
         for (let c = 0; c < this.cols; c++) {
@@ -107,7 +112,7 @@ export class Board {
     this.checkRep();
   }
 
-  private checkRep(): void {
+  public checkRep(): void {
     assert(this.rows >= 0, "rows must be non-negative");
     assert(this.cols >= 0, "cols must be non-negative");
     assert(this.cards.length === this.rows, "cards length must match rows");
@@ -119,11 +124,17 @@ export class Board {
       );
       for (let c = 0; c < this.cols; c++) {
         const card = this.cards[r]![c]!;
-        if (card.matched) {
-          assert(card.faceUp, "matched cards must be face up");
-        }
+        // Remove the requirement that matched cards must be face up
+        // Matched cards can be either face up or face down (they're removed from play)
         if (card.controller !== null) {
           assert(card.faceUp, "controlled cards must be face up");
+        }
+        // Add: if a card is matched, it should not have a controller
+        if (card.matched) {
+          assert(
+            card.controller === null,
+            "matched cards should not have controllers"
+          );
         }
       }
     }
@@ -246,7 +257,7 @@ export class Board {
     if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) {
       throw new Error("Invalid card coordinates");
     }
-
+    
     // Get or create player state
     if (!this.playerStates.has(playerId)) {
       this.playerStates.set(playerId, {
@@ -379,47 +390,58 @@ export class Board {
     card: CardState
   ): Promise<void> {
     const first = playerState.firstCard;
-    let firstCard: CardState | undefined = undefined;
-    if (first !== null) {
-      firstCard = this.cards[first.row]![first.col]!;
+    if (first === null) {
+      throw new Error("No first card selected");
     }
+
+    const firstCard = this.cards[first.row]![first.col]!;
 
     // Case 2-A: No card in this spot
     if (card.matched || card.value === null) {
-      if (firstCard !== undefined) {
-        firstCard.controller = null; // Release first card
-      }
+      // Release control of first card (Rule 2-A)
+      firstCard.controller = null;
+
+      // Reset player state
       playerState.firstCard = null;
+      playerState.secondCard = null;
+      playerState.matched = false;
+
       throw new Error(`no card at (${row},${col})`);
     }
 
-    // Case 2-B: Card already controlled by another player (skip waiting)
-    if (card.controller !== null) {
-      if (firstCard !== undefined) {
-        firstCard.controller = null; // Release first card
-      }
+    // Case 2-B: Card already controlled by another player (Rule 2-B)
+    if (card.controller !== null && card.controller !== playerId) {
+      // Release control of first card
+      firstCard.controller = null;
+
+      // Reset player state
       playerState.firstCard = null;
+      playerState.secondCard = null;
+      playerState.matched = false;
+
       throw new Error(
         `card at (${row},${col}) is controlled by another player`
       );
     }
 
-    // Case 2-C: Turn face up if needed
-    card.faceUp = true;
+    // Cases 2-C, 2-D, 2-E: Valid second card flip
+    // Turn face up if needed (Rule 2-C)
+    if (!card.faceUp) {
+      card.faceUp = true;
+    }
 
     this.notifyChange();
 
-    // Case 2-D: Check if the two cards match
-    if (firstCard !== undefined && firstCard.value === card.value) {
-      // Match found – keep both cards under control
+    // Check for match (Rule 2-D vs 2-E)
+    if (firstCard.value === card.value) {
+      // Match found - keep control of both cards (Rule 2-D)
       card.controller = playerId;
       playerState.secondCard = { row, col };
       playerState.matched = true;
     } else {
-      // Case 2-E: No match – release both cards but leave them face up
-      if (firstCard !== undefined) {
-        firstCard.controller = null;
-      }
+      // No match - release both cards (Rule 2-E)
+      firstCard.controller = null;
+      card.controller = null;
       playerState.secondCard = { row, col };
       playerState.matched = false;
     }
