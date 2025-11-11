@@ -5,19 +5,6 @@
 import assert from "node:assert";
 import fs from "node:fs";
 
-// TODO fields
-// Abstraction function:
-//   TODO
-// Representation invariant:
-//   TODO
-// Safety from rep exposure:
-//   TODO
-// TODO constructor
-// TODO checkRep
-// TODO other methods
-
-
-
 /**
  * Represents the state of a single card on the board
  */
@@ -47,7 +34,7 @@ export class Board {
   private readonly rows: number;
   private readonly cols: number;
   private cards: CardState[][];
-  private changeListeners: Array<() => void> = [];
+  private changeListeners: Array<() => void> = []; // array of functions called when the board's state changes
   private readonly locks: Map<string, number> = new Map(); // playerId -> card index
   private playerStates: Map<
     string,
@@ -124,12 +111,11 @@ export class Board {
       );
       for (let c = 0; c < this.cols; c++) {
         const card = this.cards[r]![c]!;
-        // Remove the requirement that matched cards must be face up
-        // Matched cards can be either face up or face down (they're removed from play)
+        // if a card is matched, it must be face up
         if (card.controller !== null) {
           assert(card.faceUp, "controlled cards must be face up");
         }
-        // Add: if a card is matched, it should not have a controller
+        // if a card has a controller, it must be face up
         if (card.matched) {
           assert(
             card.controller === null,
@@ -140,6 +126,9 @@ export class Board {
     }
   }
 
+  /**
+   * Function called whenever the board's state changes
+   */
   private notifyChange(): void {
     const listeners = this.changeListeners;
     this.changeListeners = [];
@@ -181,23 +170,16 @@ export class Board {
     row: number,
     col: number
   ): Promise<void> {
-    const startTime = Date.now();
-    const timeoutMs = 1000; // 1 second timeout to prevent deadlocks
-
     while (!this.tryLockCard(playerId, row, col)) {
-      // Check if we've been waiting too long
-      if (Date.now() - startTime > timeoutMs) {
-        throw new Error(`Timeout waiting for card at (${row},${col})`);
-      }
+      // Card is currently controlled by another player, yield control
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
 
-      // Check if the card still exists (might have been removed)
-      const card = this.cards[row]?.[col];
-      if (!card || card.matched || card.value === null) {
-        throw new Error(`no card at (${row},${col})`);
-      }
-
-      // Small delay before retry
-      await new Promise((resolve) => setTimeout(resolve, 10));
+    // Defensive: ensure card exists
+    const card = this.cards[row]?.[col];
+    if (!card || card.matched || card.value === null) {
+      this.unlockCard(row, col);
+      throw new Error(`no card at (${row},${col})`);
     }
   }
 
@@ -219,16 +201,12 @@ export class Board {
   /**
    * Get the current board state as a string for a player
    */
-  /**
-   * Get the current board state as a string for a player in the format expected by the UI
-   */
   public look(playerId: string): string {
     const lines: string[] = [];
 
     // First line: dimensions
     lines.push(`${this.rows}x${this.cols}`);
 
-    // The UI expects a flat list of all cards, one per line
     // Each line should contain: status text
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {

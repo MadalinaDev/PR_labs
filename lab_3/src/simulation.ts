@@ -68,12 +68,12 @@ async function runConcurrentSimulation(board: Board): Promise<void> {
   // wait for all the players to finish (unless one throws an exception)
   await Promise.all(playerPromises);
 
-  console.log("\n=== Simulation Results ===");
+  console.log("\nSimulation Results:");
   console.log(`Successful flips: ${stats.successfulFlips}`);
   console.log(`Failed flips: ${stats.failedFlips}`);
   console.log(`Matches made: ${stats.matches}`);
   console.log(`Invalid coordinate errors: ${stats.invalidCoordinateErrors}`);
-  console.log("Simulation completed without crashes!");
+  console.log("Simulation completed successfully!");
 }
 
 /** @param playerNumber player to simulate */

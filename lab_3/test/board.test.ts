@@ -12,14 +12,17 @@ import { Board } from "../src/board.ts";
  */
 const boardFiles = ["ab.txt", "perfect.txt", "zoom.txt"];
 
+// Test suite for each board file
 boardFiles.forEach((fileName) => {
   describe(`Board - ${fileName}`, function () {
     let board: Board;
 
+    // Create fresh board instance before each test
     beforeEach(async function () {
       board = await Board.parseFromFile(`boards/${fileName}`);
     });
 
+    // Test basic parsing functionality
     it("parses the board file correctly", function () {
       assert(board.getRows() > 0, "rows should be positive");
       assert(board.getCols() > 0, "cols should be positive");
@@ -35,14 +38,17 @@ boardFiles.forEach((fileName) => {
       );
     });
 
+    // Test representation invariant
     it("checkRep does not throw", function () {
       assert.doesNotThrow(() => board.checkRep());
     });
 
+    // Test string representation
     it("toString works without error", function () {
       assert.doesNotThrow(() => board.toString());
     });
 
+    // Test file reading
     it("reads the board file asynchronously", async function () {
       const content = (
         await fs.promises.readFile(`boards/${fileName}`)
@@ -52,6 +58,7 @@ boardFiles.forEach((fileName) => {
 
     // ========== ADDITIONAL TESTS ==========
 
+    // Test look method for different players
     it("look returns correct format for different players", function () {
       const player1State = board.look("player1");
       const player2State = board.look("player2");
@@ -73,6 +80,7 @@ boardFiles.forEach((fileName) => {
       assert.match(lines2[0]!, /^\d+x\d+$/, "first line should be dimensions");
     });
 
+    // Test flip operation changes card state
     it("flip operation changes card state", async function () {
       const initialState = board.look("testPlayer");
 
@@ -88,6 +96,7 @@ boardFiles.forEach((fileName) => {
       );
     });
 
+    // Test invalid coordinate handling
     it("flip rejects invalid coordinates", async function () {
       const invalidRow = board.getRows();
       const invalidCol = board.getCols();
@@ -105,6 +114,7 @@ boardFiles.forEach((fileName) => {
       );
     });
 
+    // Test map function application
     it("map applies function to all cards", async function () {
       const originalValues = board.getCardValues();
 
@@ -124,6 +134,7 @@ boardFiles.forEach((fileName) => {
       }
     });
 
+    // Test watch functionality for board changes
     it("watch resolves when board changes", async function () {
       const changePromise = board.watch();
 
@@ -137,6 +148,7 @@ boardFiles.forEach((fileName) => {
       );
     });
 
+    // Test defensive copying
     it("getCardValues returns defensive copy", function () {
       const cards1 = board.getCardValues();
       const cards2 = board.getCardValues();
@@ -152,6 +164,7 @@ boardFiles.forEach((fileName) => {
       assert.deepStrictEqual(cards1, cards2, "content should be identical");
     });
 
+    // Test concurrent flip operations
     it("concurrent flip operations don't cause errors", async function () {
       // Test that multiple flip operations can be initiated
       // without causing immediate errors (concurrency safety)
@@ -175,6 +188,7 @@ boardFiles.forEach((fileName) => {
       );
     });
 
+    // Test representation invariant maintenance
     it("board maintains representation invariant after operations", async function () {
       // Test that RI is maintained after various operations
       assert.doesNotThrow(() => board.checkRep(), "RI should hold initially");
@@ -188,9 +202,9 @@ boardFiles.forEach((fileName) => {
   });
 });
 
-// ========== ADDITIONAL TEST SUITES ==========
-
+// Edge case tests
 describe("Board - Edge Cases", function () {
+  // Test minimal board configuration
   it("handles single card board", async function () {
     // Test with a minimal board
     const singleCardBoard = new Board(1, 1, [["X"]]);
@@ -200,6 +214,7 @@ describe("Board - Edge Cases", function () {
     assert.deepStrictEqual(singleCardBoard.getCardValues(), [["X"]]);
   });
 
+  // Test non-square board configurations
   it("handles rectangular boards correctly", function () {
     const wideBoard = new Board(2, 3, [
       ["A", "B", "C"],
@@ -218,7 +233,9 @@ describe("Board - Edge Cases", function () {
   });
 });
 
+// Error condition tests
 describe("Board - Error Conditions", function () {
+  // Test file not found handling
   it("rejects invalid board files", async function () {
     await assert.rejects(
       () => Board.parseFromFile("nonexistent.txt"),
@@ -227,6 +244,7 @@ describe("Board - Error Conditions", function () {
     );
   });
 
+  // Test malformed dimension line
   it("rejects malformed dimension lines", async function () {
     // Create a temporary file with bad dimensions
     const badContent = "invalid-dimension-line\ncard1\ncard2";
@@ -244,6 +262,7 @@ describe("Board - Error Conditions", function () {
     await fs.promises.unlink(tempFile);
   });
 
+  // Test incorrect card count
   it("rejects incorrect number of cards", async function () {
     // Create a temporary file with wrong card count
     const badContent = "2x2\ncard1\ncard2\ncard3"; // 2x2 needs 4 cards, but only 3 provided
@@ -262,7 +281,9 @@ describe("Board - Error Conditions", function () {
   });
 });
 
+// File parsing tests
 describe("Board - parseFromFile", function () {
+  // Test simplest possible board
   it("should parse a simple 1x1 board", async function () {
     const filename = "test-boards/simple.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -277,6 +298,7 @@ describe("Board - parseFromFile", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test board with emoji characters
   it("should parse a 3x3 board with emoji", async function () {
     const board = await Board.parseFromFile("boards/perfect.txt");
 
@@ -284,6 +306,7 @@ describe("Board - parseFromFile", function () {
     assert.strictEqual(board.getCols(), 3);
   });
 
+  // Test larger board
   it("should parse a 5x5 board", async function () {
     const board = await Board.parseFromFile("boards/ab.txt");
 
@@ -291,6 +314,7 @@ describe("Board - parseFromFile", function () {
     assert.strictEqual(board.getCols(), 5);
   });
 
+  // Test incorrect card count error
   it("should reject file with wrong card count", async function () {
     const filename = "test-boards/wrong-count.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -304,6 +328,7 @@ describe("Board - parseFromFile", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test invalid dimension handling
   it("should reject file with invalid dimensions", async function () {
     const filename = "test-boards/bad-dims.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -317,6 +342,7 @@ describe("Board - parseFromFile", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test malformed first line
   it("should reject file with malformed first line", async function () {
     const filename = "test-boards/malformed.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -331,7 +357,9 @@ describe("Board - parseFromFile", function () {
   });
 });
 
+// Board viewing tests
 describe("Board - look", function () {
+  // Test initial board state (all cards face down)
   it("should show all cards face down initially", async function () {
     const filename = "test-boards/look1.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -352,6 +380,7 @@ describe("Board - look", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test player's view of their own controlled cards
   it("should show controlled cards as player's own", async function () {
     const filename = "test-boards/look2.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -372,6 +401,7 @@ describe("Board - look", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test player's view of other players' controlled cards
   it("should show others controlled cards as face up", async function () {
     const filename = "test-boards/look3.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -393,6 +423,7 @@ describe("Board - look", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test view after card removal (matches)
   it("should show empty spaces after matches", async function () {
     const filename = "test-boards/look4.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -414,7 +445,9 @@ describe("Board - look", function () {
   });
 });
 
+// First card flip tests
 describe("Board - flip - first card", function () {
+  // Test basic flip operation
   it("should flip face-down card and give control", async function () {
     const filename = "test-boards/flip1.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -430,6 +463,7 @@ describe("Board - flip - first card", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test taking control of face-up uncontrolled card
   it("should give control of face-up uncontrolled card", async function () {
     const filename = "test-boards/flip2.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -450,6 +484,7 @@ describe("Board - flip - first card", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test flipping empty space (after removal)
   it("should throw error for empty space", async function () {
     const filename = "test-boards/flip3.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -471,6 +506,7 @@ describe("Board - flip - first card", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test waiting for controlled card
   it("should wait for controlled card", async function () {
     const filename = "test-boards/flip4.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -502,7 +538,9 @@ describe("Board - flip - first card", function () {
   });
 });
 
+// Second card flip tests (completing moves)
 describe("Board - flip - second card", function () {
+  // Test successful match
   it("should match and keep control of both cards", async function () {
     const filename = "test-boards/flip-2nd-1.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -525,6 +563,7 @@ describe("Board - flip - second card", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test failed match
   it("should not match and relinquish control", async function () {
     const filename = "test-boards/flip-2nd-2.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -544,10 +583,12 @@ describe("Board - flip - second card", function () {
 
     await fs.promises.unlink(filename);
   });
-
+  
 });
 
+// Move completion tests
 describe("Board - flip - finishing previous play", function () {
+  // Test card removal after match
   it("should remove matched cards on next move", async function () {
     const filename = "test-boards/finish1.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -568,6 +609,7 @@ describe("Board - flip - finishing previous play", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test turning down non-matching cards
   it("should turn down non-matching uncontrolled cards", async function () {
     const filename = "test-boards/finish2.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -595,7 +637,9 @@ describe("Board - flip - finishing previous play", function () {
   });
 });
 
+// Basic concurrency tests
 describe("Board - Concurrency", function () {
+  // Test multiple players flipping different cards simultaneously
   it("should handle multiple players flipping different cards", async function () {
     const filename = "test-boards/concurrent1.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -615,6 +659,7 @@ describe("Board - Concurrency", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test multiple players waiting for same card
   it("should handle multiple waiters for same card", async function () {
     const filename = "test-boards/concurrent2.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -640,6 +685,7 @@ describe("Board - Concurrency", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test concurrent operations with mixed types
   it("should handle player making move while another waits", async function () {
     const filename = "test-boards/concurrent3.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -669,7 +715,9 @@ describe("Board - Concurrency", function () {
   });
 });
 
+// Advanced concurrency tests
 describe("Board - Advanced Concurrency", function () {
+  // Test multiple concurrent flips
   it("should handle multiple players flipping different cards concurrently", async function () {
     const filename = "test-boards/concurrent-multi.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -696,6 +744,7 @@ describe("Board - Advanced Concurrency", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test deadlock prevention
   it("should not deadlock when players contend for cards", async function () {
     const filename = "test-boards/no-deadlock.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -726,7 +775,9 @@ describe("Board - Advanced Concurrency", function () {
   });
 });
 
+// Map function tests
 describe("Board - map() extended tests", function () {
+  // Test card transformation
   it("should transform all cards on the board", async function () {
     const filename = "test-boards/map-simple.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -756,6 +807,7 @@ describe("Board - map() extended tests", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test that map preserves card state
   it("should not affect card face-up/down state", async function () {
     const filename = "test-boards/map-facestate.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -807,7 +859,9 @@ describe("Board - map() extended tests", function () {
   });
 });
 
+// Watch functionality tests
 describe("Board - watch() extended tests", function () {
+  // Test watch notification on flip
   it("should wait for and notify on card flip", async function () {
     const filename = "test-boards/watch-flip.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -835,6 +889,7 @@ describe("Board - watch() extended tests", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test watch notification on card removal
   it("should notify on card removal", async function () {
     const filename = "test-boards/watch-remove.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
@@ -865,6 +920,7 @@ describe("Board - watch() extended tests", function () {
     await fs.promises.unlink(filename);
   });
 
+  // Test multiple concurrent watchers
   it("should handle multiple concurrent watchers", async function () {
     const filename = "test-boards/watch-multiple.txt";
     await fs.promises.mkdir("test-boards", { recursive: true });
