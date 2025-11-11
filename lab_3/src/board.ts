@@ -9,6 +9,12 @@ import fs from "node:fs";
  * Represents the state of a single card on the board
  */
 class CardState {
+  /**
+   * @param value string
+   * @param faceUp boolean
+   * @param matched boolean
+   * @param controller string | null
+   */
   constructor(
     public value: string,
     public faceUp: boolean = false,
@@ -16,6 +22,9 @@ class CardState {
     public controller: string | null = null
   ) {}
 
+  /**
+   * @returns {CardState} copy of this card state
+   */
   public copy(): CardState {
     return new CardState(
       this.value,
@@ -73,6 +82,11 @@ export class Board {
   //   - Public methods return defensive copies or immutable data
   //   - Internal card state is protected by async method coordination
 
+  /**
+   * @param rows number
+   * @param cols number
+   * @param cardValues string[][]
+   */
   constructor(rows?: number, cols?: number, cardValues?: string[][]) {
     // Validate dimensions first
     if (rows === undefined || cols === undefined || rows <= 0 || cols <= 0) {
@@ -99,6 +113,9 @@ export class Board {
     this.checkRep();
   }
 
+  /**
+   * @returns {void}
+   */
   public checkRep(): void {
     assert(this.rows >= 0, "rows must be non-negative");
     assert(this.cols >= 0, "cols must be non-negative");
@@ -128,6 +145,7 @@ export class Board {
 
   /**
    * Function called whenever the board's state changes
+   * @returns {void}
    */
   private notifyChange(): void {
     const listeners = this.changeListeners;
@@ -137,6 +155,9 @@ export class Board {
 
   /**
    * Convert card index to string key for locking
+   * @param row number
+   * @param col number
+   * @returns {string}
    */
   private cardKey(row: number, col: number): string {
     return `${row},${col}`;
@@ -144,6 +165,10 @@ export class Board {
 
   /**
    * Try to acquire lock on a card for a player
+   * @param playerId string
+   * @param row number
+   * @param col number
+   * @returns {boolean}
    */
   private tryLockCard(playerId: string, row: number, col: number): boolean {
     const key = this.cardKey(row, col);
@@ -156,6 +181,9 @@ export class Board {
 
   /**
    * Release lock on a card
+   * @param row number
+   * @param col number
+   * @returns {void}
    */
   private unlockCard(row: number, col: number): void {
     const key = this.cardKey(row, col);
@@ -164,6 +192,10 @@ export class Board {
 
   /**
    * Wait until a card becomes available for locking
+   * @param playerId string
+   * @param row number
+   * @param col number
+   * @returns {Promise<void>}
    */
   private async waitForCard(
     playerId: string,
@@ -183,16 +215,23 @@ export class Board {
     }
   }
 
+  /**
+   * @returns {number}
+   */
   public getRows(): number {
     return this.rows;
   }
 
+  /**
+   * @returns {number}
+   */
   public getCols(): number {
     return this.cols;
   }
 
   /**
    * Get a defensive copy of card values
+   * @returns {string[][]}
    */
   public getCardValues(): string[][] {
     return this.cards.map((row) => row.map((card) => card.value));
@@ -200,6 +239,8 @@ export class Board {
 
   /**
    * Get the current board state as a string for a player
+   * @param playerId string
+   * @returns {string}
    */
   public look(playerId: string): string {
     const lines: string[] = [];
@@ -244,6 +285,10 @@ export class Board {
 
   /**
    * Flip a card for a player
+   * @param playerId string
+   * @param row number
+   * @param col number
+   * @returns {Promise<void>}
    */
   public async flip(playerId: string, row: number, col: number): Promise<void> {
     // Validate coordinates
@@ -295,6 +340,9 @@ export class Board {
 
   /**
    * Case 3: Finish previous turn before starting a new first card
+   * @param playerId string
+   * @param playerState object
+   * @returns {Promise<void>}
    */
   private async finishPreviousPlay(
     playerId: string,
@@ -337,6 +385,12 @@ export class Board {
 
   /**
    * Flip a first card (Cases 1-A through 1-D)
+   * @param playerId string
+   * @param playerState object
+   * @param row number
+   * @param col number
+   * @param card CardState
+   * @returns {Promise<void>}
    */
   private async flipFirstCard(
     playerId: string,
@@ -370,6 +424,12 @@ export class Board {
 
   /**
    * Flip a second card (Cases 2-A through 2-D)
+   * @param playerId string
+   * @param playerState object
+   * @param row number
+   * @param col number
+   * @param card CardState
+   * @returns {Promise<void>}
    */
   private async flipSecondCard(
     playerId: string,
@@ -442,6 +502,10 @@ export class Board {
 
   /**
    * Remove a card from the board
+   * @param row number
+   * @param col number
+   * @param playerId string
+   * @returns {void}
    */
   private removeCard(row: number, col: number, playerId: string): void {
     const card = this.cards[row]![col]!;
@@ -455,6 +519,10 @@ export class Board {
 
   /**
    * Turn a card face down if it's not controlled by anyone
+   * @param row number
+   * @param col number
+   * @param expectedController string
+   * @returns {void}
    */
   private turnDownIfNotControlled(
     row: number,
@@ -477,6 +545,8 @@ export class Board {
 
   /**
    * Apply a function to all cards
+   * @param f (card: string) => Promise<string>
+   * @returns {Promise<void>}
    */
   public async map(f: (card: string) => Promise<string>): Promise<void> {
     // Group cards by their current value for pairwise consistency
@@ -522,6 +592,7 @@ export class Board {
 
   /**
    * Wait for the board to change
+   * @returns {Promise<void>}
    */
   public watch(): Promise<void> {
     return new Promise((resolve) => {
@@ -531,6 +602,8 @@ export class Board {
 
   /**
    * Make a new board by parsing a file.
+   * @param filename string
+   * @returns {Promise<Board>}
    */
   public static async parseFromFile(filename: string): Promise<Board> {
     const data = await fs.promises.readFile(filename, { encoding: "utf8" });
@@ -558,6 +631,9 @@ export class Board {
     return new Board(rows, cols, cards);
   }
 
+  /**
+   * @returns {string}
+   */
   public toString(): string {
     return this.look("observer");
   }
