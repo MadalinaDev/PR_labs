@@ -32,7 +32,7 @@ async def main():
             print(f"Trial {trial} - Quorum {quorum}: {avg_latency:.3f}s")
             all_results[trial].append(avg_latency)
 
-    # ---- Plot ----
+    # Plot
     plt.figure(figsize=(10, 6))
 
     for trial in range(1, trials+1):
@@ -49,6 +49,25 @@ async def main():
     plt.legend()
     plt.grid(True)
     plt.show()
+
+    # Checking replica consistency
+    async with httpx.AsyncClient() as client:
+        mismatches = 0
+        for i in range(100):
+            key = f"key{i}"
+            leader_resp = await client.get(f"{LEADER_URL}/get/{key}")
+            leader_value = leader_resp.json().get("value")
+            for port in range(8001, 8006):
+                follower_resp = await client.get(f"http://localhost:{port}/get/{key}")
+                follower_value = follower_resp.json().get("value")
+                if follower_value != leader_value:
+                    mismatches += 1
+                    print(f"Mismatch for {key} on follower {port}: {follower_value} != {leader_value}")
+        if mismatches == 0:
+            print("All replicas match the leader!")
+        else:
+            print(f"Total mismatches: {mismatches}")
+
 
 
 asyncio.run(main())

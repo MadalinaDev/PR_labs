@@ -31,11 +31,17 @@ async def replicate_to_follower(follower_url, key, value):
 async def set_value(item: Item):
     store[item.key] = item.value
     tasks = [replicate_to_follower(f, item.key, item.value) for f in FOLLOWERS]
-    results = await asyncio.gather(*tasks)
-    if sum(results) >= WRITE_QUORUM:
-        return {"status": "success"}
-    else:
-        raise HTTPException(status_code=500, detail="Write quorum not reached")
+    success_count = 0
+
+    for task in asyncio.as_completed(tasks):
+        result = await task
+        if result:
+            success_count += 1
+        if success_count >= WRITE_QUORUM:
+            return {"status": "success"}
+
+    raise HTTPException(status_code=500, detail="Write quorum not reached")
+
 
 @app.get("/get/{key}")
 async def get_value(key: str):
