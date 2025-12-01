@@ -4,12 +4,14 @@ import random
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import httpx
+from fastapi import Body
+
 
 app = FastAPI()
 store = {}
 
 FOLLOWERS = os.getenv("FOLLOWERS", "").split(",")
-WRITE_QUORUM = int(os.getenv("WRITE_QUORUM", 1))
+WRITE_QUORUM = int(os.getenv("WRITE_QUORUM", 3))
 MIN_DELAY = int(os.getenv("MIN_DELAY", 0)) / 1000
 MAX_DELAY = int(os.getenv("MAX_DELAY", 1000)) / 1000
 
@@ -46,3 +48,10 @@ async def set_value(item: Item):
 @app.get("/get/{key}")
 async def get_value(key: str):
     return {"key": key, "value": store.get(key, None)}
+
+
+@app.post("/config")
+async def update_quorum(write_quorum: int = Body(...)):
+    global WRITE_QUORUM
+    WRITE_QUORUM = write_quorum
+    return {"status": "ok", "WRITE_QUORUM": WRITE_QUORUM}

@@ -14,10 +14,25 @@ async def write_key(key, value):
 
 async def run_batch():
     latencies = []
-    for i in range(100):  # 100 writes per quorum
-        latency = await write_key(f"key{i}", f"value{i}")
-        latencies.append(latency)
+    keys = [f"key{i}" for i in range(10)]  # 10 keys
+    for _ in range(10):  # 10 rounds
+        tasks = []
+        for _ in range(10):  # 10 concurrent writes
+            key = keys[_ % 10] 
+            value = f"value_{time.time()}"
+            tasks.append(write_key(key, value))
+        results = await asyncio.gather(*tasks)
+        latencies.extend(results)
     return sum(latencies) / len(latencies)
+
+async def set_quorum(quorum):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{LEADER_URL}/config",
+            content=str(quorum),  
+            headers={"Content-Type": "application/json"}  
+        )
+        return response
 
 async def main():
     trials = 1
@@ -25,14 +40,16 @@ async def main():
     all_results = {trial: [] for trial in range(1, trials+1)}
 
     for trial in range(1, trials + 1):
-        print(f"\n=== TRIAL {trial} ===")
+        print(f"\--- TRIAL {trial} ---")
         for quorum in quorum_range:
+            response = await set_quorum(quorum)
+            print(response.json())
             os.environ["WRITE_QUORUM"] = str(quorum)
             avg_latency = await run_batch()
             print(f"Trial {trial} - Quorum {quorum}: {avg_latency:.3f}s")
             all_results[trial].append(avg_latency)
 
-    # Plot
+    # plotting
     plt.figure(figsize=(10, 6))
 
     for trial in range(1, trials+1):
@@ -50,7 +67,7 @@ async def main():
     plt.grid(True)
     plt.show()
 
-    # Checking replica consistency
+    # checking replica consistency
     async with httpx.AsyncClient() as client:
         mismatches = 0
         for i in range(100):

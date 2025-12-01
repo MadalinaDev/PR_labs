@@ -21,3 +21,14 @@ Command for checking value of a local env:
 ```powershell
 $Env:MAX_DELAY
 ```
+
+
+In order to run with docker:
+```docker
+docker-compose build 
+docker-compose up
+```
+
+
+Screenshot with the plotter graph:
+![alt text](plot.png)
